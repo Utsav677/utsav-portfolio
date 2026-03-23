@@ -13,16 +13,17 @@ import * as pty from 'node-pty';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const PORT    = parseInt(process.env.WS_PORT ?? '4000', 10);
+const PORT    = parseInt(process.env.PORT ?? process.env.WS_PORT ?? '8080', 10);
 const ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
 
-const wss = new WebSocketServer({ port: PORT });
+// Bind to 0.0.0.0 — Railway (and most PaaS) require this; localhost/127.0.0.1 is unreachable externally
+const wss = new WebSocketServer({ port: PORT, host: '0.0.0.0' });
 
 // Admin subscribers (for live command feed)
 const adminClients = new Set<WebSocket>();
 
 wss.on('listening', () => {
-  console.log(`[ws-server] Listening on port ${PORT}`);
+  console.log(`[ws-server] WS server listening on port ${PORT} (0.0.0.0)`);
 });
 
 wss.on('connection', (ws, req) => {
@@ -36,7 +37,7 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  console.log(`[ws-server] New connection from ${origin}`);
+  console.log(`[ws-server] Client connected — origin: ${origin || '(none)'}, url: ${req.url}`);
 
   // Spawn the sandboxed shell
   const sandboxPath = path.join(__dirname, 'sandbox.ts');
@@ -66,6 +67,7 @@ wss.on('connection', (ws, req) => {
   // WebSocket → pty
   ws.on('message', (msg: Buffer | string) => {
     const data = typeof msg === 'string' ? msg : msg.toString();
+    console.log(`[ws-server] Received: ${data.slice(0, 200)}`);
 
     // Broadcast command to admin feed
     try {

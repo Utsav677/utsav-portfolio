@@ -112,8 +112,23 @@ export default function Terminal({ autoRunWhoami = false }: Props) {
   // Boot state — keyboard disabled until boot completes
   const bootingRef    = useRef(false);
 
+  // WebSocket state (optional — command dispatch always stays local)
+  const wsRef         = useRef<WebSocket | null>(null);
+  const wsModeRef     = useRef(false);
+
+  // Status bar (direct DOM, no re-render)
+  const statusBarRef  = useRef<HTMLDivElement>(null);
+
   // Double-tab state
   const lastTabRef    = useRef(0);
+
+  // ── Status bar (direct DOM mutation — avoids re-renders) ─────────────────
+  const setStatus = useCallback((text: string, color = '#7a5010') => {
+    if (statusBarRef.current) {
+      statusBarRef.current.textContent = text;
+      statusBarRef.current.style.color = color;
+    }
+  }, []);
 
   // ── Write to terminal ──────────────────────────────────────────────────────
   const write = useCallback((text: string) => {
@@ -793,61 +808,128 @@ export default function Terminal({ autoRunWhoami = false }: Props) {
       // ── Boot sequence then whoami (first visit only) ────────────────────
       if (autoRunWhoami) {
         bootingRef.current = true;
+        try {
+          const bootLines: string[] = [
+            '\x1b[93m  ARORA-NET BIOS v1.02  (C) 1983 Utsav Arora Systems, Inc.\x1b[0m',
+            '\x1b[33m  CPU Type: BRAIN-286 @ 2.4 GHz\x1b[0m',
+            '\x1b[33m  Base Memory: 640 KB OK\x1b[0m',
+            '',
+            '\x1b[37m  Running POST...\x1b[0m',
+            '\x1b[32m  [PASS] Video adapter\x1b[0m',
+            '\x1b[32m  [PASS] Keyboard controller\x1b[0m',
+            '\x1b[32m  [PASS] Memory check — 640K OK\x1b[0m',
+            '\x1b[32m  [PASS] Drive C: PORTFOLIO.SYS\x1b[0m',
+            '',
+            '\x1b[33m  Mounting filesystem...\x1b[0m',
+            '\x1b[32m  [OK]   /projects     — 7 entries\x1b[0m',
+            '\x1b[32m  [OK]   /experience   — 3 entries\x1b[0m',
+            '\x1b[32m  [OK]   contact.txt   — found\x1b[0m',
+            '',
+            '\x1b[93m  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\x1b[0m',
+            '\x1b[93m  ▓▓  ARORA PORTFOLIO OS v1.0 — TERMINAL 1.0  ▓▓\x1b[0m',
+            '\x1b[93m  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\x1b[0m',
+            '',
+            '\x1b[33m  Starting terminal session...\x1b[0m',
+          ];
 
-        const bootLines: string[] = [
-          '\x1b[93m  ARORA-NET BIOS v1.02  (C) 1983 Utsav Arora Systems, Inc.\x1b[0m',
-          '\x1b[33m  CPU Type: BRAIN-286 @ 2.4 GHz\x1b[0m',
-          '\x1b[33m  Base Memory: 640 KB OK\x1b[0m',
-          '',
-          '\x1b[37m  Running POST...\x1b[0m',
-          '\x1b[32m  [PASS] Video adapter\x1b[0m',
-          '\x1b[32m  [PASS] Keyboard controller\x1b[0m',
-          '\x1b[32m  [PASS] Memory check — 640K OK\x1b[0m',
-          '\x1b[32m  [PASS] Drive C: PORTFOLIO.SYS\x1b[0m',
-          '',
-          '\x1b[33m  Mounting filesystem...\x1b[0m',
-          '\x1b[32m  [OK]   /projects     — 7 entries\x1b[0m',
-          '\x1b[32m  [OK]   /experience   — 3 entries\x1b[0m',
-          '\x1b[32m  [OK]   contact.txt   — found\x1b[0m',
-          '',
-          '\x1b[93m  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\x1b[0m',
-          '\x1b[93m  ▓▓  ARORA PORTFOLIO OS v1.0 — TERMINAL 1.0  ▓▓\x1b[0m',
-          '\x1b[93m  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\x1b[0m',
-          '',
-          '\x1b[33m  Starting terminal session...\x1b[0m',
-        ];
+          await new Promise<void>(resolve => {
+            let i = 0;
+            const next = () => {
+              if (!mounted) { resolve(); return; }
+              if (i >= bootLines.length) { setTimeout(resolve, 400); return; }
+              term.writeln(bootLines[i++]);
+              setTimeout(next, 70);
+            };
+            next();
+          });
 
-        await new Promise<void>(resolve => {
-          let i = 0;
-          const next = () => {
-            if (!mounted) { resolve(); return; }
-            if (i >= bootLines.length) { setTimeout(resolve, 400); return; }
-            term.writeln(bootLines[i++]);
-            setTimeout(next, 70);
-          };
-          next();
-        });
-
-        if (mounted) {
-          try {
-            const result = await runCommand('whoami', stateRef.current);
-            if (typeof result.output === 'string' && result.output) {
-              term.writeln(result.output);
-            }
-          } catch { /* ignore whoami errors */ }
+          if (mounted) {
+            try {
+              const result = await runCommand('whoami', stateRef.current);
+              if (typeof result.output === 'string' && result.output) {
+                term.writeln(result.output);
+              }
+            } catch { /* whoami errors are non-fatal */ }
+          }
+        } finally {
+          // Always unblock keyboard — even if boot was interrupted
           bootingRef.current = false;
-          showPrompt();
+        }
+      }
+
+      if (!mounted) return () => {};
+
+      showPrompt();
+      term.focus();
+
+      // ── WebSocket — attempt connection, fall back to local after 3 s ────
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+      console.log('[terminal] NEXT_PUBLIC_WS_URL =', wsUrl || '(not set — local mode)');
+
+      if (wsUrl) {
+        setStatus('[ connecting... ]', '#c88818');
+        let settled = false;
+
+        const settle = (connected: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(wsTimeout);
+          wsModeRef.current = connected;
+          if (connected) {
+            setStatus('[ connected ]', '#88bb22');
+          } else {
+            wsRef.current = null;
+            setStatus('[ local mode ]', '#7a5010');
+          }
+        };
+
+        let ws: WebSocket;
+        try {
+          console.log('[terminal] Attempting WS connection to:', wsUrl);
+          ws = new WebSocket(wsUrl);
+          wsRef.current = ws;
+        } catch (e) {
+          console.log('[terminal] WS constructor threw:', e);
+          settle(false);
+          ws = null as any;
+        }
+
+        const wsTimeout = setTimeout(() => {
+          console.log('[terminal] WS timed out after 3 s — switching to local mode');
+          settle(false);
+        }, 3000);
+
+        if (ws) {
+          ws.onopen = () => {
+            console.log('[terminal] WS connected');
+            settle(true);
+          };
+          ws.onerror = (e) => {
+            console.log('[terminal] WS error', e);
+            settle(false);
+          };
+          ws.onclose = (e) => {
+            console.log('[terminal] WS closed', e.code, e.reason);
+            settle(false);
+            wsModeRef.current = false;
+            wsRef.current = null;
+            setStatus('[ local mode ]', '#7a5010');
+          };
+          // WS messages are not used for command output — local dispatcher handles all commands
+          ws.onmessage = () => {};
         }
       } else {
-        bootingRef.current = false;
-        showPrompt();
+        console.log('[terminal] No WS URL set — running in local mode');
       }
+      // No WS URL configured — stay in local mode (default)
 
       return () => {
         mounted = false;
         resizeObserver.disconnect();
         window.removeEventListener('resize', onWindowResize);
         term.dispose();
+        wsRef.current?.close();
+        wsRef.current = null;
         clearInterval(topTimerRef.current);
         clearInterval(matrixTimerRef.current);
         clearInterval(pingTimerRef.current);
@@ -859,17 +941,40 @@ export default function Terminal({ autoRunWhoami = false }: Props) {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        background: '#060401',
-        overflow: 'hidden',
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          background: '#060401',
+          overflow: 'hidden',
+        }}
+      />
+      <div
+        ref={statusBarRef}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 1rem',
+          fontFamily: '"Share Tech Mono", monospace',
+          fontSize: '11px',
+          color: '#7a5010',
+          pointerEvents: 'none',
+          zIndex: 200,
+          userSelect: 'none',
+        }}
+      >
+        [ local mode ]
+      </div>
+    </>
   );
 }
 

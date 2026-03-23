@@ -1,0 +1,15 @@
+export const contact = {
+  name: 'Utsav Arora',
+  email: 'utsiear@gmail.com',
+  github: 'github.com/Utsav677',
+  githubUrl: 'https://github.com/Utsav677',
+  linkedin: 'linkedin.com/in/u-arora',
+  linkedinUrl: 'https://linkedin.com/in/u-arora',
+  university: 'Purdue University',
+  degree: 'B.S. Computer Science',
+  graduation: 'May 2027',
+  concentration: 'Machine Intelligence',
+  minors: ['Artificial Intelligence', 'Mathematics', 'Psychology'],
+  location: 'West Lafayette, IN',
+  resumeUrl: 'https://drive.google.com/file/d/your-resume-id/view',
+};

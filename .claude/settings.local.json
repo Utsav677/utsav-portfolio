@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@14 . --typescript --tailwind --app --no-eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Read(//opt/homebrew/**)",
+      "Read(//usr/local/**)",
+      "Read(//Users/utsavarora/.nvm/versions/**)",
+      "Read(//Users/utsavarora/.volta/**)",
+      "Skill(update-config)",
+      "Bash(echo:*)",
+      "Bash(export PATH=\"$HOME/.nvm/versions/node/v24.14.0/bin:$PATH\")",
+      "Bash(npm install:*)",
+      "Bash(grep -E \"xterm|framer|supabase|next|ws$|node-pty\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(PATH=\"$HOME/.nvm/versions/node/v24.14.0/bin:$PATH\" npm run build)"
+    ]
+  }
+}

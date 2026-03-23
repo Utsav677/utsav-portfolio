@@ -475,9 +475,9 @@ export default function Terminal({ autoRunWhoami = false }: Props) {
 
     async function init() {
       // Dynamically import xterm and all addons — none can run server-side
-      const { Terminal: XTerm } = await import('xterm');
-      const { FitAddon }        = await import('xterm-addon-fit');
-      const { WebLinksAddon }   = await import('xterm-addon-web-links');
+      const { Terminal: XTerm } = await import('@xterm/xterm');
+      const { FitAddon }        = await import('@xterm/addon-fit');
+      const { WebLinksAddon }   = await import('@xterm/addon-web-links');
 
       if (!mounted || !containerRef.current) return;
 

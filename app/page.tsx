@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import Scanlines from '../components/Scanlines';
-import 'xterm/css/xterm.css';
+import '@xterm/xterm/css/xterm.css';
 
 // Boot sequence uses Framer Motion — no SSR issues
 const BootSequence = dynamic(() => import('../components/BootSequence'), {
